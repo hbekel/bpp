@@ -1,0 +1,371 @@
+#!/usr/bin/env ruby
+# coding: utf-8
+
+require 'pathname'
+
+def error(line, message)
+  STDERR.puts "error: line %d: %s" % [line, message]
+  exit 1
+end
+
+class String
+
+  @@keywords = "end for next data input# input dim read let goto run if
+               restore gosub return rem stop on wait load save verify def
+               poke print# print cont list clr cmd sys open close get new
+               tab( to fn spc( then not step + - * / ^ and or > = < sgn
+               int abs usr fre pos sqr rnd log exp cos sin tan atn peek
+               len str$ val asc chr$ left$ right$ mid$ go ~".split(/\s+/)
+
+  @@controls = "wht dish ensh swlc down rvon home del esc red rght grn blu
+                orng F1 F3 F5 F7 F2 F4 F6 F8 sret swuc blk up rvof clr inst
+                brn lred gry1 gry2 lgrn lblu gry3 pur left yel cyn wht
+                up\\/lo\\slock\\son up\\/lo\\slock\\soff return lower\\scase
+                down rvs\\son home delete esc red right grn blu orange
+                f1 f3 f5 f7 f2 f4 f6 f8 shift\\sreturn upper\\scase blk up
+                rvs\\soff clr insert brown lt\\sred grey1 grey2 lt\\sgreen
+                lt\\sblue grey3 pur left yel cyn".split(/\s+/)
+
+  def self.controls(open, close)
+    /#{Regexp.quote(open)}((\d+\s+)?(#{@@controls.join('|')}))#{Regexp.quote(close)}/
+  end
+
+  @@unescaped = self.controls('{', '}')
+  @@escaped = self.controls('~', '~')
+  
+  def label?
+    not keyword?
+  end
+
+  def keyword?
+    @@keywords.include?(self)
+  end
+  
+  def escape!
+    gsub! @@unescaped, "~\\1~"
+  end
+
+  def unescape!
+    gsub! @@escaped, "{\\1}"
+  end
+end
+
+class IO
+  def each_line_with_number(&block)
+    number = 0
+    each_line do |line|
+      yield line, number+=1
+    end
+  end
+end
+
+module Node
+  include Enumerable
+
+  attr_writer :parent
+
+  def root?
+    parent.nil?
+  end
+
+  def leaf?
+    children.count == 0
+  end
+
+  def parent
+    @parent ||= nil
+  end
+
+  def children
+    @children ||= []
+  end
+
+  def addChild(child)
+    @children ||= []
+    child = [child].flatten
+
+    @children += child
+    child.each { |c| c.parent = self }    
+  end
+
+  def removeChild(child)
+    if children.include? child
+      children.delete(child)
+      child.parent = nil
+      child
+    end
+  end
+
+  def <<(child)
+    addChild(child)
+    child
+  end
+
+  def next_sibling(clazz=Node)
+    node = nil
+
+    after = false    
+    return node if root?
+    
+    parent.each do |sibling|
+      if sibling == self
+        after = true
+        next
+      end
+
+      if after && sibling.is_a?(clazz)
+        node = sibling
+        break
+      end
+    end
+        
+    return node
+  end
+
+  def next_sibling?(clazz=Node)
+    not next_sibling(clazz).nil?
+  end
+  
+  def each(clazz=Node, &block)
+    children.each do |child|
+      yield child if child.is_a? clazz 
+      child.each do |grandchild|
+        yield grandchild if grandchild.is_a? clazz
+      end
+    end
+  end
+end
+
+class Label
+  include Node
+
+  attr_reader :name, :source
+
+  def initialize(name, source=0)
+    @name = name
+    @source = source
+  end
+
+  def path
+    return name if parent.root?
+    return "%s.%s" % [parent.path, name]
+  end
+  
+  def to_s
+    @name
+  end
+end
+
+class Line < String
+  include Node
+  @@number = -1
+
+  attr_reader :number
+  
+  def initialize(a, source=0)
+    super(a)
+    @source = source
+    unescape!    
+  end
+
+  def parent=(node)
+    super(node)
+    @number = @@number+=1
+  end
+
+  def strip_comments!
+    gsub!(/(^|:)?\s*rem.+/, '')
+  end
+
+  def strip_whitespace!
+    gsub!(/"[^"]+"|\s+/) { |m| m =~ /^\s+$/ ? '' : m }
+  end
+
+  def resolve_labels!
+    match = /(then\s*goto|then\s*gosub|then|goto|gosub)\s*(?<labels>[\w,\s.]+)+/.match(self)
+
+    if match
+      labels = match["labels"].split(/\s*,\s*/)
+
+      labels.each do |label|
+        next if label.keyword?
+
+        begin
+          self.gsub!(label, parent.resolve(label).to_s)
+        rescue
+          error(@source, "failed to resolve label '%s'" % [label])
+        end        
+      end      
+    end
+  end
+end
+
+class Scope 
+  include Node
+
+  attr_reader :name
+  
+  def initialize(name=nil)
+    @name = name.to_s
+  end
+
+  def defined?(label)
+    children.each do |child|
+      next unless child.is_a? Label
+      return true if child.name == label.name
+    end
+    false
+  end
+
+  def path
+    n = name
+    p = parent
+    
+    until(p.root?)
+      n = "%s.%s" % [p.name, n]
+      p = p.parent
+    end
+    
+    return n
+  end
+
+  def resolve(label)
+    each(Label) do |candidate|
+      if label == candidate.name || label == candidate.path
+        if candidate.next_sibling?(Line)
+          return candidate.next_sibling(Line).number
+        else
+          error(candidate.source,"referenced label '%s' not followed by basic code" % [candidate])
+        end
+      end
+    end
+
+    return parent.resolve(label)
+  end
+
+  def to_s
+    return "global scope" if root?
+    return "scope '#{path}'"
+  end
+end
+
+class Parser
+
+  def initialize(io=STDIN, scope=Scope.new)
+    @io = io
+    @scope = scope
+  end
+
+  def include(type, path, source)
+    pathname = Pathname.new(path)
+
+    if not pathname.exist?
+      error(source, "include: no such file or directory: '%s'" % [pathname])
+    end
+    
+    if type == "source"
+      include_source(pathname)
+
+    elsif type == "data"
+      include_data(pathname)
+
+    else
+      error(source, "include: unknown type: '%s'" % [type])
+    end
+  end
+  
+  def include_source(pathname)
+    Parser.new(pathname.open('r'), @scope).parse
+  end
+
+  def include_data(pathname)
+    input = pathname.open('rb')
+    i = 0
+    line = "data "
+
+    input.each_byte do |byte|
+      line += "%d," % [byte]
+
+      if i > 0 && i%16 == 0
+        @scope << Line.new(line.chop) unless line.empty?
+        line = "data "
+      end
+      
+      i+=1
+    end
+    @scope << Line.new(line.chop) unless line == "data "
+    input.close
+  end    
+
+  def parse
+    @io.each_line_with_number do |line, source|
+
+      line.chomp!
+      line.strip!
+      line.escape!
+      
+      next if line.empty?
+      next if line =~ /^rem/
+      
+      if line =~ /^!include\s+(.+?)\s+"(.+?)"/
+        match = $&
+        include($1, $2, source)          
+        line.sub!(match, '')
+        redo
+
+      elsif line =~ /^(\w+):/ && $1.label?
+
+        label = Label.new($1, source)
+
+        if @scope.defined? label
+          error(source, "label '%s' already defined in %s" % [label, @scope]);
+        end
+
+        @scope << label
+        line.sub!(/^(\w+):/, '')
+        redo
+        
+      elsif line =~ /^{/
+        @scope = @scope << Scope.new(@scope.children.last)
+        line.sub!(/^{/, '')
+        redo
+
+      elsif line =~ /^([^}]+)/
+        @scope << Line.new($1, source)
+        line.sub!($1, '')
+        redo
+        
+      elsif line =~ /}$/
+        @scope = @scope.parent
+        line.sub!(/}$/, '')
+        redo        
+      end      
+    end
+
+    @io.close
+    @scope
+  end
+end
+
+class Processor
+  def initialize(input=STDIN, output=STDOUT)
+    @input = input
+    @output = output
+  end
+  
+  def process()
+    tree = Parser.new(@input).parse
+
+    tree.each(Line) do |line|
+
+      line.resolve_labels!
+      line.strip_comments!
+      line.strip_whitespace!
+      
+      puts "%d%s" % [line.number, line]
+    end
+  end
+end
+
+Processor.new.process
+		
