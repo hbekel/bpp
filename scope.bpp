@@ -1,0 +1,101 @@
+a: {
+   print "a"
+
+   a: print "a": goto a
+   b: print "b": goto b
+   c: print "c": goto c
+
+   print "a.a":goto a.a
+   print "a.b":goto a.b
+   print "a.c":goto a.c
+
+   print "b.a":goto b.a
+   print "b.b":goto b.b
+   print "b.c":goto b.c
+}
+
+b: {
+   print "b"
+
+   a: print "a": goto a
+   b: print "b": goto b
+   c: print "c": goto c
+
+   print "b.a":goto b.a
+   print "b.b":goto b.b
+   print "b.c":goto b.c
+
+   print "a.a":goto a.a
+   print "a.b":goto a.b
+   print "a.c":goto a.c
+}
+
+c: {
+   print "c"
+
+   a: print "a": goto a
+   b: print "b": goto b
+   c: print "c": goto c
+
+   print "c.a":goto c.a
+   print "c.b":goto c.b
+   print "c.c":goto c.c
+
+   d: {
+      print "c.d"
+      
+      a: print "a":goto a
+      b: print "b":goto b
+      c: print "c":goto c
+
+      print "d.a":goto d.a
+      print "d.b":goto d.b
+      print "d.c":goto d.c
+
+      print "c.d.a":goto c.d.a
+      print "c.d.b":goto c.d.b
+      print "c.d.c":goto c.d.c
+   }
+
+   print "d.a":goto d.a
+   print "d.b":goto d.b
+   print "d.c":goto d.c
+
+   print "a.a":goto a.a
+   print "a.b":goto a.b
+   print "a.c":goto a.c
+}
+
+e: {
+   print "e"
+
+   a: print "a": goto a
+   b: print "b": goto b
+   c: print "c": goto c
+
+   e: {
+      d: {
+         print "e.d"
+      
+	 a: print "a":goto a
+      	 b: print "b":goto b
+         c: print "c":goto c
+
+         print "d.a":goto d.a
+         print "d.b":goto d.b
+         print "d.c":goto d.c
+
+         print "c.d.a":goto c.d.a
+         print "c.d.b":goto c.d.b
+         print "c.d.c":goto c.d.c
+      }
+   }
+
+   print "e.d.a":goto e.d.a
+   print "e.d.b":goto e.d.b
+   print "e.d.c":goto e.d.c
+
+   print "c.d.a":goto c.d.a
+   print "c.d.b":goto c.d.b
+   print "c.d.c":goto c.d.c
+}

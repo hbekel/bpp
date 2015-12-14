@@ -1,13 +1,13 @@
-all: example.prg
+all: test.prg
 
-example.out: bapp example.bas
-	bapp < example.bas > example.out
+test.bas: bpp test.bpp
+	bpp < test.bpp > test.bas
 
-example.prg: example.out
-	petcat -w2 < example.out > example.prg
+test.prg: test.bas
+	petcat -w2 < test.bas > test.prg
 
-test: example.prg
-	xlink example.prg
+test: test.prg
+	xlink test.prg
 
 clean:
-	rm -f *.{out,prg}
+	rm -f *.{bas,prg}
