@@ -10,4 +10,4 @@ test: test.prg
 	xlink test.prg
 
 clean:
-	rm -f *.{bas,prg}
+	rm -f *.{bas,prg,exe}
