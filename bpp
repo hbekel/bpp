@@ -2,7 +2,6 @@
 # coding: utf-8
 
 require 'pathname'
-require 'pp'
 
 #----------------------------------------------------------------------------
 
@@ -236,7 +235,7 @@ class Line
         self << Literal.new(match["string"])
         @text = match.post_match.strip
         
-      elsif (match = /^(?<code>then\s*(gosub|goto)|then|gosub|goto)\s*(?<labels>[\w\s,.]+)+/
+      elsif (match = /^(?<code>then\s*(go(sub|to))|then|go(sub|to))\s*(?<labels>[\w\s,.]+)+/
                      .match(@text))
 
         self << Code.new(match["code"])
@@ -322,24 +321,6 @@ class Scope
     return n
   end
 
-  def oldresolve(label)
-    each(Label) do |candidate|
-      if label == candidate.name ||
-         label == candidate.path ||
-         (self.root? && label == candidate.global)
-        if candidate.next_sibling?(Line)
-          return candidate.next_sibling(Line).number
-        else
-          error(candidate.source,
-                "referenced label '%s' not followed by basic code" %
-                [candidate])
-        end
-      end
-    end
-
-    return parent.resolve(label)
-  end
-
   def resolve(reference)
 
     children.each do |label|
@@ -375,19 +356,6 @@ class Scope
     return parent.resolve(reference)          
   end
 
-  # How to resolve?
-  # 1. look for the label by local name in the current scope (no descend)
-  # 2. look for the label by qualified name in the curent scopes children (rec descend)
-  # 3. not found -> repeat from parent scope
-  
-  # 2. a label in a scope lower than the current scope must be qualified
-  #    from the current scope (or globally).
-  #    So the label needs to answer to:
-  #      what is your local name?
-  #      what is your name qualified from scope(x) (defaut: global scope)
-  #    -> boils down to "label qualified from scope(x)"
-  # 3. look for the label by name or qualified name in the parent scope
-  
   def to_s
     return "global scope" if root?
     return "scope '#{path}'"
@@ -458,8 +426,7 @@ class Parser
         line.sub!(match, '')
         redo
 
-      elsif line =~ /^(\w+):/ && $1.label?
-
+      elsif line =~ /^([a-zA-Z_]\w+):/ && $1.label?
         label = Label.new($1, source)
 
         if @scope.defined? label
@@ -467,7 +434,7 @@ class Parser
         end
 
         @scope << label
-        line.sub!(/^(\w+):/, '')
+        line.sub!(/^([a-zA-Z_]\w+):/, '')
         redo
         
       elsif line =~ /^{/
@@ -492,16 +459,17 @@ class Parser
   end
 end
 
-class Processor
+class Preprocessor
   def initialize(input=STDIN, output=STDOUT)
     @input = input
     @output = output
   end
   
   def process()
-    Parser.new(@input, Scope.new("global")).parse.each(Line) { |line| puts line }
+    tree = Parser.new(@input, Scope.new("global")).parse
+    tree.each(Line) { |line| puts line }
   end
 end
 
-Processor.new.process
+Preprocessor.new.process
 		
