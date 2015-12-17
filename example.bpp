@@ -1,0 +1,57 @@
+goto main
+
+screen: { !include source "screen.bpp" }
+
+main: {
+
+      gosub screen.clear
+      gosub screen.theme
+
+ask:  print "how do you feel?":print
+      print "1) i feel great!"
+      print "2) nothing to complain about"
+      print "3) not so well..."
+      print "4) quit asking"
+      print
+      input a
+
+      rem check the range...
+
+      if a < 1 goto error
+      if a > 4 goto error
+
+      print
+
+      rem give the answer...
+
+      on a gosub answer.good, answer.neutral, answer.bad, done
+
+      rem repeat...
+
+      gosub delay
+      goto main
+
+error: print: print "please enter a number between 1 and 4!":
+       gosub delay: gosub screen.clear
+       goto ask
+
+answer: {
+
+       good:    print "well that's swell!": goto done
+        
+       neutral: print "ok, carry on then...": goto done
+
+       bad:     on int(rnd(23)*3)+1 goto one, two, three
+        
+       one:   print "here, have a cookie!": goto done
+       two:   print "dont' worry, be happy!": goto done
+       three: print "cheer up!": goto done
+
+       done: return
+
+       }               
+}
+
+done: print: print "see ya!": end
+
+delay: { for i = 0 to 1024: next i: return }
