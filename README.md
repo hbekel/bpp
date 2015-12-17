@@ -10,12 +10,6 @@ comes with VICE.
 
 This pointless example program is separated into two files:
 
-### screen.bpp
-<pre>
-clear: print "{clr}";: return
-theme: poke53280,0: poke53281,0: poke646,5: return
-</pre>
-
 ### example.bpp
 <pre>
 goto main
@@ -77,9 +71,20 @@ done: print: print "see ya!": end
 delay: { for i = 0 to 1024: next i: return }
 </pre>
 
+### screen.bpp
+
+This file contains two subroutines for clearing the screen and setting the screen and text colors. In the example below, we will include this file in it's own scope labeled "screen", so that we will be able to call these routines using `gosub screen.clear` and `gosub screen.theme`.
+
+<pre>
+clear: print "{clr}";: return
+theme: poke53280,0: poke53281,0: poke646,5: return
+</pre>
+
+## Usage
+
 bpp is implemented as a simple filter, reading from stdin and producing output on stdout.
 
-`$ bpp < example.bpp'
+    $ bpp < example.bpp
 
 <pre>
 0 goto3
@@ -127,19 +132,63 @@ underscore. BASIC keywords can not be used as label identifiers.
 Labels can be defined by prefixing code with a label name, followed by
 a colon character:
 
-`label: <code>...`
+    label: <code>...
 
 ## Scopes
 
 Scopes are created by enclosing code in curly brackets:
 
-`{ <code>... }`
+    { <code>... }
 
 Scopes prefixed with a label definition can be referenced by the given
 label, allowing code from other scopes to explicitly reference labels
 local to this scope using the given identifier.
 
-`label: { <code>... }`
+    label: { <code>... }
 
+## Referencing Labels and Scopes
+
+Labels can be referenced by using a label reference instead of a line number
+for `goto` and `gosub` as well as implicit gotos following the `then` part of
+an `if`-statement.
+
+    goto <label>
+    on <var> goto <label>, <label>, <label>...
+    
+    gosub <label>
+    on <var> gosub <label>, <label>, <label>...
+    
+    if <condition> then <label>
+    
+A label reference may be prefixed with a reference to the scope containing the label, separated by a dot:
+
+    <path-to-scope>.<label>
+    
+Where a path to a scope may also include multiple scope references separated by dots:
+
+    <outer-scope-label>.<inner-scope.label>.<label>
+
+## How references are resolved
+
+In order to resolve a label reference, bpp first tries to find the label by its local name in the current scope.
+
+If the label is not found within the current scope, it is first searched for in all subscopes of the current scope by the path
+relative to the current scope. 
+
+If the label has not been found, bpp will try to resolve it in the same manner, beginning from the parent scope of the current scope, until the implied global scope is reached.
+
+The global scope can be explicitly referenced by the implied scope label "global".
+
+In the example above, the scope "answer" contains a label called "done", which is used as the exit point for the code in this scope. The code here can reference the "done" label by using it's local name. The global scope also contains a label called "done", which is the exit point for the program as a whole.
+
+From within the "answer" scope, the global "done" label can be referenced by explicitly using "global.done". Similary, code outside of the "answer" scope or its parent scopes can reference this label using "answer.scope".
+
+## Include directive
+
+The include directive can be used to include code or data from external files:
+
+    !include <type> "<filename>"
+
+Type can be either "source" or "data", where "source" includes the contents of the file verbatim into the current file and "data" interprets the contents of the file binary data and the creates the corresponding basic DATA lines.
 
 
