@@ -1,9 +1,10 @@
-# bpp - a basic preprocessor for use with petcat
+## bpp - a basic preprocessor for use with petcat
 
-This is a simple symbolic preprocessor for writing CBM BASIC 2.0 in
-more readable form, ditching line numbers and using labels, scopes and
-includes instead. The output can then be converted to a PRG file using
-the petcat utilitiy that comes with VICE.
+This is a simple symbolic preprocessor for cross-developing CBM BASIC
+programs in a more readable form, removing the need for line numbers
+and using labels, scopes and include directives instead. The output
+can then be converted to a PRG file using the petcat utilitiy that
+comes with VICE.
 
 ## Example
 
@@ -112,3 +113,33 @@ bpp is implemented as a simple filter, reading from stdin and producing output o
 28 print:print"see ya!":end
 29 fori=0to1024:nexti:return
 </pre>
+
+All references to labels have been replaced by the actual line number
+for the respective label. Also, spaces and rem statements have been
+stripped from the output.
+
+## Labels
+
+Label identifiers may include letters, numbers, and underscores,
+although they have to begin with either a letter or an
+underscore. BASIC keywords can not be used as label identifiers.
+
+Labels can be defined by prefixing code with a label name, followed by
+a colon character:
+
+`label: <code>...`
+
+## Scopes
+
+Scopes are created by enclosing code in curly brackets:
+
+`{ <code>... }`
+
+Scopes prefixed with a label definition can be referenced by the given
+label, allowing code from other scopes to explicitly reference labels
+local to this scope using the given identifier.
+
+`label: { <code>... }`
+
+
+
