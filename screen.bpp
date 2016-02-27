@@ -1,2 +1,2 @@
-clear: print "{clr}";:return
+clear: print "{clr}{5 down}";:return
 theme: poke53280,0:poke53281,0:poke646,5:return

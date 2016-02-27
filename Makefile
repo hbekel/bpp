@@ -1,6 +1,6 @@
 all: test.prg
 
-test.bas: bpp test.bpp
+test.bas: bpp test.bpp screen.bpp
 	bpp < test.bpp > test.bas
 
 test.prg: test.bas

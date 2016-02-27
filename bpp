@@ -2,6 +2,7 @@
 # coding: utf-8
 
 require 'pathname'
+require 'optparse'
 
 #----------------------------------------------------------------------------
 
@@ -210,12 +211,15 @@ end
 class Line
   include Node
 
+  attr_accessor :source, :file
+  
   @@number = -1
 
   attr_reader :number, :text
   
-  def initialize(text, source=0)
-    @text = text    
+  def initialize(text, source=0, file="stdin") #FIXME: add source file?
+    @text = text
+    @file = file
     @source = source
     parse
     cleanup
@@ -364,8 +368,9 @@ end
 
 class Parser
 
-  def initialize(io=STDIN, scope=Scope.new)
+  def initialize(io=STDIN, file="stdin", scope=Scope.new)
     @io = io
+    @file = file
     @scope = scope
   end
 
@@ -388,7 +393,7 @@ class Parser
   end
   
   def include_source(pathname)
-    Parser.new(pathname.open('r'), @scope).parse
+    Parser.new(pathname.open('r'), pathname, @scope).parse
   end
 
   def include_data(pathname)
@@ -443,7 +448,7 @@ class Parser
         redo
 
       elsif line =~ /^([^}]+)/
-        @scope << Line.new($1, source)
+        @scope << Line.new($1, source, @file)
         line.sub!($1, '')
         redo
         
@@ -466,10 +471,40 @@ class Preprocessor
   end
   
   def process()
-    tree = Parser.new(@input, Scope.new("global")).parse
-    tree.each(Line) { |line| puts line }
+    @tree = Parser.new(@input, "stdin", Scope.new("global")).parse
+  end
+
+  def lookup(num)
+    @tree.each(Line) do |line|
+      if line.number == num
+        puts "%s, line %s" % [line.file, line.source]
+        break
+      end
+    end
+  end
+       
+  def put()
+    @tree.each(Line) { |line| puts line }
   end
 end
 
-Preprocessor.new.process
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: bpp [options]"
+
+  opts.on("-lLINE", "--line=LINE", "Lookup line") do |l|
+    options[:line] = l
+  end
+end.parse!
+
+pp = Preprocessor.new
+pp.process
+
+if options.has_key? :line
+  pp.lookup(options[:line].to_i)
+else
+  pp.put
+end
+
+
 		
