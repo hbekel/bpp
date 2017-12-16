@@ -496,7 +496,8 @@ class Parser
       
       next if line.empty?
       next if line =~ /^rem/
-
+      next if line =~ /^;/
+      
       if line =~ /^!include\s+(.+?)\s+"(.+?)"/
         match = $&
         include($1, $2, source)          

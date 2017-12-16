@@ -138,6 +138,11 @@ simply use pipes and redirects:
 
     $ bpp < example.bpp | petcat -w2 > example.prg
 
+## Comments
+
+All lines starting with a semicolon or a Basic REM statement are
+ignored.
+
 ## Labels
 
 Label identifiers may include letters, numbers, and underscores,
