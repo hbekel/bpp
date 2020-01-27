@@ -311,7 +311,7 @@ class Line
         self << Literal.new(match["string"])
         @text = match.post_match.strip
         
-      elsif (match = /^(?<code>then\s*(go(sub|to))|then|go(sub|to))\s*(?<labels>[\w\s,.]+)+/
+      elsif (match = /^(?<code>go(sub|to))\s*(?<labels>[\w\s,.]+)+/
                      .match(@text))
 
         self << Code.new(match["code"])
