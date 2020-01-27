@@ -307,7 +307,7 @@ class Line
     
     until @text.empty?
 
-      if (match = /^["](?<string>[^"]+)["]/.match(@text))
+      if (match = /^["](?<string>[^"]*)["]/.match(@text))
         self << Literal.new(match["string"])
         @text = match.post_match.strip
         
